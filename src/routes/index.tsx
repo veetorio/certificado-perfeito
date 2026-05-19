@@ -204,11 +204,22 @@ function Index() {
     if (list.length === 0 || !image) return;
     setGenerating(true);
     try {
-      // Defer to next frame so UI updates
       await new Promise((r) => setTimeout(r, 30));
-      const pdf = buildPdf(list);
-      if (!pdf) return;
-      pdf.save(`certificados-lote-${list.length}.pdf`);
+      const zip = new JSZip();
+      for (const p of list) {
+        const pdf = buildPdf([p]);
+        if (!pdf) continue;
+        const blob = pdf.output("blob");
+        const safe = p.name.replace(/\s+/g, "_").replace(/[^\w.-]/g, "");
+        zip.file(`certificado-${safe}.pdf`, blob);
+      }
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `certificados-lote-${list.length}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
     } finally {
       setGenerating(false);
     }
