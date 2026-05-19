@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
@@ -7,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Download, MousePointer2, FileDown } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -84,6 +86,9 @@ function Index() {
   const [dragging, setDragging] = useState<FieldKey | null>(null);
   const [participantList, setParticipantList] = useState("");
   const [generating, setGenerating] = useState(false);
+  const useQueryResult = useQuery({
+    queryKey: ["fetchMembers"],
+    queryFn: loadMembers})
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -139,6 +144,11 @@ function Index() {
     if (!dragging) return;
     const { x, y } = getRelativePos(e);
     setFields((prev) => ({ ...prev, [dragging]: { ...prev[dragging], x, y } }));
+  }
+
+  async function loadMembers() {
+    const data = await fetch("http://localhost:3000/participantes/names").then((res) => res.json());
+    setParticipantList(data.map((d: { name: string; date?: string; time?: string }) => `${d.name}; ${d.date || ""}; ${d.time || ""}`).join("\n"));
   }
 
   function handleCanvasMouseUp() {
