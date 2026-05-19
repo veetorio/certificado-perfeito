@@ -207,6 +207,7 @@ function Index() {
     if (list.length === 0 || !image) return;
     setGenerating(true);
     try {
+      console.log("[SENDING BATCH] Fields coordinates:", fields);
       await new Promise((r) => setTimeout(r, 30));
       const zip = new JSZip();
       for (const p of list) {
