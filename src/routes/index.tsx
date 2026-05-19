@@ -148,7 +148,9 @@ function Index() {
 
   async function loadMembers() {
     const data = await fetch("http://localhost:3000/participantes/names").then((res) => res.json());
-    setParticipantList(data.map((d: { name: string; date?: string; time?: string }) => `${d.name}; ${d.date || ""}; ${d.time || ""}`).join("\n"));
+    const names = data.map((item: { name: string }) => item.name.split(" "));
+    console.log(names)
+    setParticipantList(data.join(",\n"));
   }
 
   function handleCanvasMouseUp() {
