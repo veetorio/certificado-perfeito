@@ -1,26 +1,260 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useRef, useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Upload, Download, MousePointer2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
+type FieldKey = "name" | "date" | "time";
+
+interface Field {
+  x: number; // 0-1 relative
+  y: number;
+  fontSize: number;
+  color: string;
+  fontFamily: string;
+  align: CanvasTextAlign;
 }
 
+const DEFAULT_FIELDS: Record<FieldKey, Field> = {
+  name: { x: 0.5, y: 0.5, fontSize: 48, color: "#1a1a1a", fontFamily: "serif", align: "center" },
+  date: { x: 0.5, y: 0.7, fontSize: 24, color: "#1a1a1a", fontFamily: "serif", align: "center" },
+  time: { x: 0.5, y: 0.78, fontSize: 24, color: "#1a1a1a", fontFamily: "serif", align: "center" },
+};
+
+const FIELD_LABELS: Record<FieldKey, string> = {
+  name: "Nome do participante",
+  date: "Data",
+  time: "Hora",
+};
+
 function Index() {
-  return <PlaceholderIndex />;
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [fields, setFields] = useState<Record<FieldKey, Field>>(DEFAULT_FIELDS);
+  const [values, setValues] = useState({
+    name: "João da Silva",
+    date: new Date().toLocaleDateString("pt-BR"),
+    time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+  });
+  const [selected, setSelected] = useState<FieldKey>("name");
+  const [placingMode, setPlacingMode] = useState(false);
+  const [dragging, setDragging] = useState<FieldKey | null>(null);
+
+  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => setImage(img);
+    img.src = url;
+  }
+
+  // Render
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !image) return;
+    canvas.width = image.width;
+    canvas.height = image.height;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(image, 0, 0);
+
+    (Object.keys(fields) as FieldKey[]).forEach((key) => {
+      const f = fields[key];
+      ctx.fillStyle = f.color;
+      ctx.font = `${f.fontSize}px ${f.fontFamily}`;
+      ctx.textAlign = f.align;
+      ctx.textBaseline = "middle";
+      ctx.fillText(values[key], f.x * canvas.width, f.y * canvas.height);
+
+      if (key === selected) {
+        const metrics = ctx.measureText(values[key]);
+        const w = metrics.width;
+        const h = f.fontSize;
+        const cx = f.x * canvas.width;
+        const cy = f.y * canvas.height;
+        ctx.strokeStyle = "#3b82f6";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(cx - w / 2 - 6, cy - h / 2 - 4, w + 12, h + 8);
+        ctx.setLineDash([]);
+      }
+    });
+  }, [image, fields, values, selected]);
+
+  function getRelativePos(e: React.MouseEvent<HTMLCanvasElement>) {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width);
+    const y = ((e.clientY - rect.top) / rect.height);
+    return { x, y };
+  }
+
+  function handleCanvasMouseDown(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!image) return;
+    const { x, y } = getRelativePos(e);
+    if (placingMode) {
+      setFields((prev) => ({ ...prev, [selected]: { ...prev[selected], x, y } }));
+      setPlacingMode(false);
+      return;
+    }
+    // Hit test - find closest field
+    const canvas = canvasRef.current!;
+    const ctx = canvas.getContext("2d")!;
+    let hit: FieldKey | null = null;
+    (Object.keys(fields) as FieldKey[]).forEach((key) => {
+      const f = fields[key];
+      ctx.font = `${f.fontSize}px ${f.fontFamily}`;
+      const w = ctx.measureText(values[key]).width / canvas.width;
+      const h = f.fontSize / canvas.height;
+      if (Math.abs(x - f.x) < w / 2 + 0.01 && Math.abs(y - f.y) < h / 2 + 0.01) {
+        hit = key;
+      }
+    });
+    if (hit) {
+      setSelected(hit);
+      setDragging(hit);
+    }
+  }
+
+  function handleCanvasMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!dragging) return;
+    const { x, y } = getRelativePos(e);
+    setFields((prev) => ({ ...prev, [dragging]: { ...prev[dragging], x, y } }));
+  }
+
+  function handleCanvasMouseUp() {
+    setDragging(null);
+  }
+
+  function download() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `certificado-${values.name.replace(/\s+/g, "_")}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+  const f = fields[selected];
+
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="mx-auto max-w-7xl">
+        <header className="mb-6">
+          <h1 className="text-3xl font-bold text-foreground">Gerador de Certificados</h1>
+          <p className="text-muted-foreground">Faça upload de uma imagem e posicione os campos.</p>
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+          <Card className="p-5 space-y-5 h-fit">
+            <div>
+              <Label htmlFor="upload" className="mb-2 block">Imagem do certificado</Label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-input bg-secondary px-4 py-6 text-sm hover:bg-accent">
+                <Upload className="h-4 w-4" />
+                {image ? "Trocar imagem" : "Selecionar imagem"}
+                <input id="upload" type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              </label>
+            </div>
+
+            <div className="space-y-3">
+              <Label>Valores</Label>
+              {(Object.keys(values) as FieldKey[]).map((k) => (
+                <div key={k}>
+                  <Label className="text-xs text-muted-foreground">{FIELD_LABELS[k]}</Label>
+                  <Input
+                    value={values[k]}
+                    onChange={(e) => setValues((v) => ({ ...v, [k]: e.target.value }))}
+                    onFocus={() => setSelected(k)}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3 border-t pt-4">
+              <Label>Campo selecionado: {FIELD_LABELS[selected]}</Label>
+              <Button
+                variant={placingMode ? "default" : "outline"}
+                className="w-full"
+                onClick={() => setPlacingMode((p) => !p)}
+                disabled={!image}
+              >
+                <MousePointer2 className="mr-2 h-4 w-4" />
+                {placingMode ? "Clique na imagem..." : "Posicionar clicando"}
+              </Button>
+              <p className="text-xs text-muted-foreground">Ou arraste o campo diretamente na imagem.</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Tamanho</Label>
+                  <Input
+                    type="number"
+                    value={f.fontSize}
+                    onChange={(e) =>
+                      setFields((p) => ({ ...p, [selected]: { ...p[selected], fontSize: +e.target.value } }))
+                    }
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Cor</Label>
+                  <Input
+                    type="color"
+                    value={f.color}
+                    onChange={(e) =>
+                      setFields((p) => ({ ...p, [selected]: { ...p[selected], color: e.target.value } }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-xs">Fonte</Label>
+                <select
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={f.fontFamily}
+                  onChange={(e) =>
+                    setFields((p) => ({ ...p, [selected]: { ...p[selected], fontFamily: e.target.value } }))
+                  }
+                >
+                  <option value="serif">Serif</option>
+                  <option value="sans-serif">Sans-serif</option>
+                  <option value="'Times New Roman', serif">Times New Roman</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="'Courier New', monospace">Courier</option>
+                  <option value="cursive">Cursive</option>
+                </select>
+              </div>
+            </div>
+
+            <Button onClick={download} disabled={!image} className="w-full">
+              <Download className="mr-2 h-4 w-4" />
+              Baixar certificado
+            </Button>
+          </Card>
+
+          <Card className="overflow-hidden p-4">
+            {image ? (
+              <canvas
+                ref={canvasRef}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                className={`w-full h-auto rounded ${placingMode ? "cursor-crosshair" : "cursor-move"}`}
+              />
+            ) : (
+              <div className="flex aspect-[1.414/1] items-center justify-center rounded border border-dashed border-input text-muted-foreground">
+                Faça upload de uma imagem para começar
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }
