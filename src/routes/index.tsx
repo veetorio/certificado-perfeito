@@ -89,7 +89,8 @@ function Index() {
   const [generating, setGenerating] = useState(false);
   const useQueryResult = useQuery({
     queryKey: ["fetchMembers"],
-    queryFn: loadMembers})
+    queryFn: async () => await loadMembers()}
+  );
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -148,9 +149,8 @@ function Index() {
   }
 
   async function loadMembers() {
-    const data = await fetch("http://localhost:3000/participantes/names").then((res) => res.json());
-    const names = data.map((item: { name: string }) => item.name.split(" "));
-    console.log(names)
+    let data = await fetch("http://localhost:3000/participantes/nomesAbreviados").then((res) => res.json());
+    data = data.map((e: { nome: string }) => e.nome);
     setParticipantList(data.join(",\n"));
   }
 
