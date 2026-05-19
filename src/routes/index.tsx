@@ -170,6 +170,7 @@ function Index() {
     });
 
     participants.forEach((p, idx) => {
+      console.log("[CERTIFICATE FIELDS]", fields);
       const v = {
         name: p.name,
         date: p.date || values.date,
