@@ -2,6 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useRef, useState, useEffect } from "react";
 import jsPDF from "jspdf";
+import JSZip from "jszip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
