@@ -166,7 +166,7 @@ function Index() {
   }
 
   async function loadMembers() {
-    let data = await fetch("https://api-certificado-pm9y.onrender.com/nomesAbreviados").then((res) => res.json());
+    let data = await fetch("https://api-certificado-pm9y.onrender.com/participantes/nomesAbreviados").then((res) => res.json());
     data = data.map((e: { nome: string }) => e.nome);
     setParticipantList(data.join(",\n"));
   }
