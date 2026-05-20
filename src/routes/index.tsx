@@ -266,7 +266,7 @@ function Index() {
               <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed border-input bg-secondary px-4 py-6 text-sm hover:bg-accent">
                 <Upload className="h-4 w-4" />
                 {image ? "Trocar imagem" : "Selecionar imagem"}
-                <input id="upload" type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+                <input id="upload" type="file" accept="image/*,application/pdf" className="hidden" onChange={handleUpload} />
               </label>
             </div>
 
